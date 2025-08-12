@@ -449,30 +449,50 @@ h1, h2, h3, h4, h5, h6 {
     border: 1px solid var(--border-color);
     position: relative;
     opacity: 0;
-    transform: translateY(40px) scale(0.95);
-    animation: cardFadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    transform: translateY(60px) scale(0.92) rotateX(30deg) skewY(2deg);
+    filter: blur(12px) brightness(0.7);
+    box-shadow: 0 0 0 rgba(201,169,110,0);
+    animation: spectacularCardReveal 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: opacity, transform, filter, box-shadow;
 }
 
-.dog-card:nth-child(1) { animation-delay: 0.08s; }
-.dog-card:nth-child(2) { animation-delay: 0.18s; }
-.dog-card:nth-child(3) { animation-delay: 0.28s; }
-.dog-card:nth-child(4) { animation-delay: 0.38s; }
+.dog-card:nth-child(1) { animation-delay: 0.10s; }
+.dog-card:nth-child(2) { animation-delay: 0.22s; }
+.dog-card:nth-child(3) { animation-delay: 0.34s; }
+.dog-card:nth-child(4) { animation-delay: 0.46s; }
+.dog-card:nth-child(5) { animation-delay: 0.58s; }
+.dog-card:nth-child(6) { animation-delay: 0.70s; }
 
-@keyframes cardFadeIn {
+@keyframes spectacularCardReveal {
     0% {
         opacity: 0;
-        transform: translateY(60px) scale(0.92);
-        filter: blur(8px);
+        transform: translateY(60px) scale(0.92) rotateX(30deg) skewY(2deg);
+        filter: blur(12px) brightness(0.7);
+        box-shadow: 0 0 0 rgba(201,169,110,0);
+    }
+    30% {
+        opacity: 0.5;
+        transform: translateY(30px) scale(1.03) rotateX(10deg) skewY(1deg);
+        filter: blur(6px) brightness(0.85);
+        box-shadow: 0 12px 32px rgba(201,169,110,0.12);
     }
     60% {
-        opacity: 0.7;
-        transform: translateY(10px) scale(1.01);
-        filter: blur(2px);
+        opacity: 0.85;
+        transform: translateY(-8px) scale(1.04) rotateX(0deg) skewY(0deg);
+        filter: blur(2px) brightness(1);
+        box-shadow: 0 24px 48px rgba(201,169,110,0.18);
+    }
+    80% {
+        opacity: 1;
+        transform: translateY(2px) scale(1.01) rotateX(0deg) skewY(0deg);
+        filter: blur(0.5px) brightness(1.05);
+        box-shadow: 0 32px 64px rgba(201,169,110,0.22);
     }
     100% {
         opacity: 1;
-        transform: translateY(0) scale(1);
-        filter: blur(0);
+        transform: translateY(0) scale(1) rotateX(0deg) skewY(0deg);
+        filter: blur(0) brightness(1);
+        box-shadow: 0 16px 40px rgba(201,169,110,0.18), 0 2px 8px rgba(0,0,0,0.12);
     }
 }
 
@@ -733,34 +753,41 @@ h1, h2, h3, h4, h5, h6 {
     z-index: 2000;
     left: 0;
     top: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(5px);
+    overflow: auto;
 }
 
 .modal-content {
     background: var(--dark-secondary);
-    margin: 5% auto;
+    margin: 5vh auto;
     padding: 0;
     border-radius: 16px;
-    width: 90%;
+    width: 95vw;
     max-width: 500px;
+    min-width: 0;
     border: 1px solid var(--border-color);
     animation: modalSlideIn 0.3s ease-out;
+    box-sizing: border-box;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
+    padding: 1.55rem;
     border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h2 {
     color: var(--text-primary);
     margin: 0;
+    font-size: 1.3rem;
+    word-break: break-word;
 }
 
 .close {
@@ -802,6 +829,7 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-primary);
     font-size: 1rem;
     transition: var(--transition-fast);
+    box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -857,6 +885,33 @@ h1, h2, h3, h4, h5, h6 {
 .contact-alternative a:hover {
     color: var(--accent-gold);
     text-decoration: underline;
+}
+
+/* Responsive modal for mobile screens */
+@media (max-width: 600px) {
+    .modal-content {
+        width: 98vw;
+        max-width: 98vw;
+        margin: 2vh auto;
+        border-radius: 10px;
+        padding: 0;
+        max-height: 96vh;
+    }
+    .modal-header {
+        padding: 1rem;
+    }
+    .contact-form {
+        padding: 1rem;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 0.8rem;
+        font-size: 0.95rem;
+    }
 }
 
 /* Gallery Section */
