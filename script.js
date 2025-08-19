@@ -1,4 +1,4 @@
-// DOM Elements
+// DOM Elements (grab references but don't assume they exist)
 const navToggle = document.getElementById('navToggle');
 const navMenu = document.getElementById('navMenu');
 const modal = document.getElementById('contactModal');
@@ -6,17 +6,22 @@ const closeModal = document.querySelector('.close');
 const contactForm = document.getElementById('contactForm');
 const dogInterestSelect = document.getElementById('dogInterest');
 
-// Navigation Toggle
-navToggle.addEventListener('click', () => {
-    navMenu.classList.toggle('active');
-    navToggle.classList.toggle('active');
-});
+// Keep track of last focused element for modal accessibility
+let lastFocusedElementBeforeModal = null;
 
-// Close mobile menu when clicking on a link
+// Navigation Toggle (guarded)
+if (navToggle && navMenu) {
+    navToggle.addEventListener('click', () => {
+        navMenu.classList.toggle('active');
+        navToggle.classList.toggle('active');
+    });
+}
+
+// Close mobile menu when clicking on a link (guarded)
 document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', () => {
-        navMenu.classList.remove('active');
-        navToggle.classList.remove('active');
+        if (navMenu) navMenu.classList.remove('active');
+        if (navToggle) navToggle.classList.remove('active');
     });
 });
 
@@ -24,7 +29,10 @@ document.querySelectorAll('.nav-link').forEach(link => {
 function scrollToSection(sectionId) {
     const element = document.getElementById(sectionId);
     if (element) {
-        const offsetTop = element.offsetTop - 80; // Account for fixed navbar
+        // Use getBoundingClientRect + current scroll for more reliable offset
+        const offset = 80; // account for fixed navbar
+        const elementTop = window.scrollY + element.getBoundingClientRect().top;
+        const offsetTop = Math.max(0, elementTop - offset);
         window.scrollTo({
             top: offsetTop,
             behavior: 'smooth'
@@ -32,112 +40,144 @@ function scrollToSection(sectionId) {
     }
 }
 
-// Navbar scroll effect
+// Navbar scroll effect (guarded, corrected logic)
 window.addEventListener('scroll', () => {
     const navbar = document.querySelector('.navbar');
+    if (!navbar) return;
+
     if (window.scrollY > 100) {
+        // scrolled state
         navbar.style.background = '#000000';
         navbar.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.3)';
     } else {
-        navbar.style.background = '#000000';
+        // default (transparent) state
+        navbar.style.background = 'transparent';
         navbar.style.boxShadow = 'none';
     }
 });
 
-// Modal functionality
+// Modal functionality (guarded and accessibility improvements)
 function openContactModal(dogName = '') {
+    if (!modal) return;
+    lastFocusedElementBeforeModal = document.activeElement;
     modal.style.display = 'block';
+    modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
-    
-    // Pre-select dog if specified
-    if (dogName) {
+
+    // Pre-select dog if specified and the select exists
+    if (dogName && dogInterestSelect) {
         dogInterestSelect.value = dogName;
     }
-    
-    // Focus on first input
+
+    // Focus on first input if present
     setTimeout(() => {
-        document.getElementById('name').focus();
+        const firstInput = modal.querySelector('#name') || modal.querySelector('input, textarea, select, button');
+        if (firstInput) firstInput.focus();
     }, 300);
 }
 
 function closeContactModal() {
+    if (!modal) return;
     modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = 'auto';
-    contactForm.reset();
+    if (contactForm) contactForm.reset();
+
+    // return focus to previously focused element
+    try {
+        if (lastFocusedElementBeforeModal && typeof lastFocusedElementBeforeModal.focus === 'function') {
+            lastFocusedElementBeforeModal.focus();
+        }
+    } catch (e) {
+        // ignore
+    }
 }
 
-// Event listeners for modal
-closeModal.addEventListener('click', closeContactModal);
+// Event listeners for modal close (guarded)
+if (closeModal) closeModal.addEventListener('click', closeContactModal);
 
 window.addEventListener('click', (e) => {
-    if (e.target === modal) {
+    if (modal && e.target === modal) {
         closeContactModal();
     }
 });
 
-// Escape key to close modal
+// Escape key to close modal (guarded)
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.style.display === 'block') {
+    if (e.key === 'Escape' && modal && modal.style.display === 'block') {
         closeContactModal();
     }
 });
 
-// Contact form submission
-contactForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    
-    // Get form data
-    const formData = new FormData(contactForm);
-    const data = {
-        name: formData.get('name'),
-        email: formData.get('email'),
-        dogInterest: formData.get('dogInterest'),
-        message: formData.get('message')
-    };
-    
-    // Validate form
-    if (!data.name || !data.email || !data.message) {
-        showNotification('Please fill in all required fields.', 'error');
-        return;
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
-        showNotification('Please enter a valid email address.', 'error');
-        return;
-    }
-    
-    // Simulate form submission
-    submitForm(data);
-});
+// Contact form submission (guarded)
+if (contactForm) {
+    contactForm.addEventListener('submit', (e) => {
+        e.preventDefault();
 
-// Form submission function
+        // Get form data safely
+        const formData = new FormData(contactForm);
+        const data = {
+            name: (formData.get('name') || '').toString().trim(),
+            email: (formData.get('email') || '').toString().trim(),
+            dogInterest: (formData.get('dogInterest') || '').toString().trim(),
+            message: (formData.get('message') || '').toString().trim()
+        };
+
+        // Validate form
+        if (!data.name || !data.email || !data.message) {
+            showNotification('Please fill in all required fields.', 'error');
+            return;
+        }
+
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.email)) {
+            showNotification('Please enter a valid email address.', 'error');
+            return;
+        }
+
+        // Submit
+        submitForm(data);
+    });
+}
+
+// Form submission function (resilient to missing submit button)
 async function submitForm(data) {
-    const submitBtn = document.querySelector('.submit-btn');
-    const originalText = submitBtn.innerHTML;
-    
-    // Loading state
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    submitBtn.disabled = true;
-    
+    // Try to find the submit button inside form; fallback to any .submit-btn
+    let submitBtn = null;
+    if (contactForm) {
+        submitBtn = contactForm.querySelector('button[type="submit"], .submit-btn') || document.querySelector('.submit-btn');
+    } else {
+        submitBtn = document.querySelector('.submit-btn');
+    }
+
+    const originalText = submitBtn ? submitBtn.innerHTML : null;
+
+    // Loading state (if button exists)
+    if (submitBtn) {
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        submitBtn.disabled = true;
+    }
+
     try {
         // Simulate API call delay
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // In a real application, you would send data to your backend here
+
+        // In a real application, send data to backend here
         console.log('Form submission data:', data);
-        
+
         showNotification('Your inquiry has been sent successfully! We will contact you within 24 hours.', 'success');
         closeContactModal();
-        
+
     } catch (error) {
         console.error('Form submission error:', error);
         showNotification('There was an error sending your inquiry. Please try again.', 'error');
     } finally {
-        // Reset button state
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
+        // Reset button state if we changed it
+        if (submitBtn) {
+            submitBtn.innerHTML = originalText || 'Send';
+            submitBtn.disabled = false;
+        }
     }
 }
 
@@ -146,19 +186,19 @@ function showNotification(message, type = 'info') {
     // Remove existing notifications
     const existingNotifications = document.querySelectorAll('.notification');
     existingNotifications.forEach(notification => notification.remove());
-    
+
     // Create notification element
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
         <div class="notification-content">
-            <i class="fas fa-${getNotificationIcon(type)}"></i>
+            <i class="fas fa-${getNotificationIcon(type)}" aria-hidden="true"></i>
             <span>${message}</span>
-            <button class="notification-close">&times;</button>
+            <button class="notification-close" aria-label="Close notification">&times;</button>
         </div>
     `;
-    
-    // Add styles
+
+    // Add styles (inline to ensure they exist even if CSS not loaded)
     notification.style.cssText = `
         position: fixed;
         top: 100px;
@@ -172,22 +212,26 @@ function showNotification(message, type = 'info') {
         max-width: 400px;
         animation: slideInRight 0.3s ease-out;
     `;
-    
+
     // Add to DOM
     document.body.appendChild(notification);
-    
-    // Close functionality
+
+    // Close functionality (guarded)
     const closeBtn = notification.querySelector('.notification-close');
-    closeBtn.addEventListener('click', () => {
-        notification.style.animation = 'slideOutRight 0.3s ease-out';
-        setTimeout(() => notification.remove(), 300);
-    });
-    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        });
+    }
+
     // Auto remove after 5 seconds
     setTimeout(() => {
         if (document.body.contains(notification)) {
             notification.style.animation = 'slideOutRight 0.3s ease-out';
-            setTimeout(() => notification.remove(), 300);
+            setTimeout(() => {
+                if (document.body.contains(notification)) notification.remove();
+            }, 300);
         }
     }, 5000);
 }
@@ -212,11 +256,12 @@ function getNotificationColor(type) {
 
 // AOS (Animate On Scroll) implementation
 function initAOS() {
+    if (typeof IntersectionObserver === 'undefined') return;
     const observerOptions = {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'
     };
-    
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -225,7 +270,7 @@ function initAOS() {
             }
         });
     }, observerOptions);
-    
+
     // Observe all elements with data-aos attribute
     document.querySelectorAll('[data-aos]').forEach(el => {
         observer.observe(el);
@@ -237,39 +282,42 @@ function initParallax() {
     window.addEventListener('scroll', () => {
         const scrolled = window.pageYOffset;
         const heroImg = document.querySelector('.hero-bg-img');
-        
+
         if (heroImg && scrolled < window.innerHeight) {
             heroImg.style.transform = `translateY(${scrolled * 0.5}px)`;
         }
-        
-        // Hero content stays fixed - no parallax movement
     });
 }
 
 // Stats counter animation
 function animateStats() {
+    if (typeof IntersectionObserver === 'undefined') return;
     const statNumbers = document.querySelectorAll('.stat-number');
+    if (!statNumbers || statNumbers.length === 0) return;
+
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const target = entry.target;
-                const finalValue = target.textContent;
-                const isNumber = !isNaN(parseInt(finalValue));
-                
+                const finalValueText = (target.textContent || '').replace(/[^\d]/g, '');
+                const finalValue = finalValueText ? parseInt(finalValueText, 10) : 0;
+                const isNumber = !isNaN(finalValue) && finalValue > 0;
+
                 if (isNumber) {
-                    animateNumber(target, parseInt(finalValue));
+                    animateNumber(target, finalValue);
                 }
                 observer.unobserve(target);
             }
         });
     });
-    
+
     statNumbers.forEach(stat => observer.observe(stat));
 }
 
 function animateNumber(element, finalValue) {
     let currentValue = 0;
-    const increment = finalValue / 60; // 60 frames for smooth animation
+    const frames = 60;
+    const increment = finalValue / frames;
     const timer = setInterval(() => {
         currentValue += increment;
         if (currentValue >= finalValue) {
@@ -277,11 +325,20 @@ function animateNumber(element, finalValue) {
             clearInterval(timer);
         }
         element.textContent = Math.floor(currentValue) + (finalValue >= 100 ? '+' : '');
-    }, 16); // ~60fps
+    }, Math.round(1000 / 60)); // ~60fps
 }
 
 // Lazy loading for images
 function initLazyLoading() {
+    if (typeof IntersectionObserver === 'undefined') {
+        // simple fallback: load all immediately
+        document.querySelectorAll('img[data-src]').forEach(img => {
+            img.src = img.dataset.src;
+            img.classList.remove('lazy');
+        });
+        return;
+    }
+
     const images = document.querySelectorAll('img[data-src]');
     const imageObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -293,7 +350,7 @@ function initLazyLoading() {
             }
         });
     });
-    
+
     images.forEach(img => imageObserver.observe(img));
 }
 
@@ -302,7 +359,7 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
         e.preventDefault();
         const targetId = this.getAttribute('href').substring(1);
-        scrollToSection(targetId);
+        if (targetId) scrollToSection(targetId);
     });
 });
 
@@ -319,13 +376,14 @@ function initHeroScroll() {
 // Form validation enhancement
 function enhanceFormValidation() {
     const inputs = document.querySelectorAll('input, textarea, select');
-    
+    if (!inputs) return;
+
     inputs.forEach(input => {
         // Real-time validation feedback
         input.addEventListener('blur', () => {
             validateField(input);
         });
-        
+
         input.addEventListener('input', () => {
             // Clear validation state on input
             input.classList.remove('valid', 'invalid');
@@ -334,26 +392,27 @@ function enhanceFormValidation() {
 }
 
 function validateField(field) {
+    if (!field) return false;
     const value = field.value.trim();
     let isValid = true;
-    
+
     // Required field validation
     if (field.hasAttribute('required') && !value) {
         isValid = false;
     }
-    
+
     // Email validation
     if (field.type === 'email' && value) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         isValid = emailRegex.test(value);
     }
-    
-    // Apply validation classes
-    if (value) {
+
+    // Apply validation classes only if user has typed something or field is required
+    if (value || field.hasAttribute('required')) {
         field.classList.toggle('valid', isValid);
         field.classList.toggle('invalid', !isValid);
     }
-    
+
     return isValid;
 }
 
@@ -373,26 +432,30 @@ function debounce(func, wait) {
 const handleResize = debounce(() => {
     // Handle responsive adjustments
     if (window.innerWidth > 768) {
-        navMenu.classList.remove('active');
-        navToggle.classList.remove('active');
+        if (navMenu) navMenu.classList.remove('active');
+        if (navToggle) navToggle.classList.remove('active');
     }
 }, 250);
 
 window.addEventListener('resize', handleResize);
 
-// Hero Carousel functionality
+// Hero Carousel functionality (guarded)
 function initHeroCarousel() {
     const slides = document.querySelectorAll('.hero-slide');
+    if (!slides || slides.length === 0) return;
     let currentSlide = 0;
-    
+
     function nextSlide() {
+        if (slides.length === 0) return;
         slides[currentSlide].classList.remove('active');
         currentSlide = (currentSlide + 1) % slides.length;
         slides[currentSlide].classList.add('active');
     }
-    
-    // Auto-advance every 5 seconds
-    setInterval(nextSlide, 5000);
+
+    // Auto-advance only if more than one slide
+    if (slides.length > 1) {
+        setInterval(nextSlide, 5000);
+    }
 }
 
 // Initialize all functionality when DOM is loaded
@@ -404,80 +467,46 @@ document.addEventListener('DOMContentLoaded', () => {
     initHeroScroll();
     enhanceFormValidation();
     initHeroCarousel();
-    
-    // Add custom CSS animations for notifications
+
+    // Add custom CSS animations for notifications (append once)
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(100%); opacity: 0; }
+            to   { transform: translateX(0); opacity: 1; }
         }
-        
         @keyframes slideOutRight {
-            from {
-                transform: translateX(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateX(100%);
-                opacity: 0;
-            }
+            from { transform: translateX(0); opacity: 1; }
+            to   { transform: translateX(100%); opacity: 0; }
         }
-        
-        .notification-content {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .notification-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            margin-left: auto;
-            padding: 0 0.5rem;
-        }
-        
-        input.valid, textarea.valid, select.valid {
-            border-color: #28a745;
-        }
-        
-        input.invalid, textarea.invalid, select.invalid {
-            border-color: #dc3545;
-        }
+        .notification-content { display: flex; align-items: center; gap: 0.5rem; }
+        .notification-close { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; margin-left: auto; padding: 0 0.5rem; }
+        input.valid, textarea.valid, select.valid { border-color: #28a745; }
+        input.invalid, textarea.invalid, select.invalid { border-color: #dc3545; }
     `;
     document.head.appendChild(style);
 });
 
-// Error handling for images
+// Error handling for images (guarded)
 document.addEventListener('error', (e) => {
-    if (e.target.tagName === 'IMG') {
+    if (e.target && e.target.tagName === 'IMG') {
         e.target.style.display = 'none';
         console.warn('Failed to load image:', e.target.src);
     }
 }, true);
 
 // Performance monitoring
-const performanceObserver = new PerformanceObserver((list) => {
-    for (const entry of list.getEntries()) {
-        if (entry.name === 'first-contentful-paint') {
-            console.log('FCP:', entry.startTime);
-        }
-    }
-});
-
 try {
+    const performanceObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+            if (entry.name === 'first-contentful-paint') {
+                console.log('FCP:', entry.startTime);
+            }
+        }
+    });
     performanceObserver.observe({ entryTypes: ['paint'] });
 } catch (e) {
-    // PerformanceObserver not supported
+    // PerformanceObserver not supported — ignore
 }
 
 // Dog Filtering System
@@ -487,30 +516,32 @@ const FILTER_COOLDOWN = 1000; // 1 second cooldown
 
 function filterDogs(category) {
     const now = Date.now();
-    
+
     // Check cooldown for same button
     if (currentFilter === category && (now - lastFilterTime) < FILTER_COOLDOWN) {
         return;
     }
-    
+
     const filterBtns = document.querySelectorAll('.filter-btn');
     const activeBtn = document.querySelector(`[data-category="${category}"]`);
-    
-    if (!activeBtn) return;
-    
+
+    if (!activeBtn && category !== 'all') return;
+
     lastFilterTime = now;
-    
+
     // Remove active class from all buttons
     filterBtns.forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     // Add active class to clicked button
-    activeBtn.classList.add('active');
-    
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const allSections = document.querySelectorAll('.male-dogs, .female-dogs, .male-puppies, .female-puppies, .upcoming-breeds');
+
     if (category === 'all') {
         // Show all categories
-        document.querySelectorAll('.male-dogs, .female-dogs, .male-puppies, .female-puppies, .upcoming-breeds').forEach((section, index) => {
+        allSections.forEach((section, index) => {
             section.style.display = 'block';
             setTimeout(() => {
                 section.classList.add('filtered');
@@ -518,31 +549,21 @@ function filterDogs(category) {
         });
     } else {
         // Hide all categories first
-        document.querySelectorAll('.male-dogs, .female-dogs, .male-puppies, .female-puppies, .upcoming-breeds').forEach(section => {
+        allSections.forEach(section => {
             section.style.display = 'none';
             section.classList.remove('filtered');
         });
-        
+
         // Show only selected category based on class name
         let targetClass = '';
-        switch(category) {
-            case 'male':
-                targetClass = '.male-dogs';
-                break;
-            case 'female':
-                targetClass = '.female-dogs';
-                break;
-            case 'male-puppies':
-                targetClass = '.male-puppies';
-                break;
-            case 'female-puppies':
-                targetClass = '.female-puppies';
-                break;
-            case 'upcoming':
-                targetClass = '.upcoming-breeds';
-                break;
+        switch (category) {
+            case 'male': targetClass = '.male-dogs'; break;
+            case 'female': targetClass = '.female-dogs'; break;
+            case 'male-puppies': targetClass = '.male-puppies'; break;
+            case 'female-puppies': targetClass = '.female-puppies'; break;
+            case 'upcoming': targetClass = '.upcoming-breeds'; break;
         }
-        
+
         if (targetClass) {
             const targetSection = document.querySelector(targetClass);
             if (targetSection) {
@@ -553,7 +574,7 @@ function filterDogs(category) {
             }
         }
     }
-    
+
     currentFilter = category;
 }
 
